@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRON: Online Multiplayer</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #050a0f;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Orbitron', sans-serif;
+    color: #fff;
+  }
+
+  /* ───── LOBBY SCREEN ───── */
+  #lobby {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+    animation: fadeIn 0.6s ease;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+  #lobby h1 {
+    font-size: 52px;
+    font-weight: 900;
+    letter-spacing: 14px;
+    text-shadow: 0 0 30px #00e5ff, 0 0 80px #00e5ff66;
+  }
+
+  #lobby .tagline {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: #5599aa;
+    letter-spacing: 4px;
+    margin-top: -16px;
+  }
+
+  .lobby-box {
+    background: #0a1520;
+    border: 1px solid #1a3a4a;
+    border-radius: 8px;
+    padding: 28px 36px;
+    width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .lobby-box h2 {
+    font-size: 14px;
+    letter-spacing: 3px;
+    font-weight: 700;
+    color: #88ccdd;
+  }
+
+  .lobby-box p {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: #6699aa;
+    line-height: 1.6;
+  }
+
+  .btn {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 3px;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .btn-cyan {
+    background: #00e5ff;
+    color: #000;
+    box-shadow: 0 0 20px #00e5ff44;
+  }
+  .btn-cyan:hover {
+    background: #33eeff;
+    box-shadow: 0 0 30px #00e5ff88;
+  }
+
+  .btn-orange {
+    background: #ff6600;
+    color: #000;
+    box-shadow: 0 0 20px #ff660044;
+  }
+  .btn-orange:hover {
+    background: #ff8833;
+    box-shadow: 0 0 30px #ff660088;
+  }
+
+  .btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .room-code-display {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 36px;
+    font-weight: 900;
+    letter-spacing: 10px;
+    color: #00e5ff;
+    text-shadow: 0 0 16px #00e5ff88;
+    padding: 10px 0;
+    user-select: all;
+    cursor: pointer;
+  }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    color: #334455;
+    font-size: 12px;
+    letter-spacing: 3px;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #1a3a4a;
+  }
+
+  input[type="text"] {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 8px;
+    text-align: center;
+    text-transform: uppercase;
+    background: #060d14;
+    border: 1px solid #1a3a4a;
+    border-radius: 4px;
+    padding: 12px;
+    color: #ff6600;
+    outline: none;
+    width: 100%;
+  }
+  input[type="text"]:focus {
+    border-color: #ff6600;
+    box-shadow: 0 0 12px #ff660033;
+  }
+
+  #status {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: #88ccdd;
+    letter-spacing: 2px;
+    min-height: 20px;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+  .hidden { display: none !important; }
+
+  /* ───── GAME SCREEN ───── */
+  #gameScreen { display: none; flex-direction: column; align-items: center; gap: 12px; }
+
+  #hud {
+    display: flex;
+    justify-content: space-between;
+    width: 802px;
+    padding: 0 4px;
+  }
+
+  .player-hud {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .p1-hud { color: #00e5ff; text-shadow: 0 0 10px #00e5ff88; }
+  .p2-hud { color: #ff6600; text-shadow: 0 0 10px #ff660088; }
+
+  .score-val {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 22px;
+  }
+
+  .you-tag {
+    font-size: 9px;
+    background: #ffffff22;
+    padding: 2px 6px;
+    border-radius: 3px;
+    letter-spacing: 1px;
+  }
+
+  #gameCanvas {
+    border: 1px solid #1a3a4a;
+    box-shadow: 0 0 20px #00e5ff22, 0 0 60px #00e5ff11, inset 0 0 30px #00000088;
+    border-radius: 2px;
+  }
+
+  #overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  #overlay .winner {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 700;
+    font-size: 28px;
+    margin-bottom: 8px;
+    letter-spacing: 4px;
+  }
+  .winner.p1 { color: #00e5ff; text-shadow: 0 0 20px #00e5ff; }
+  .winner.p2 { color: #ff6600; text-shadow: 0 0 20px #ff6600; }
+  .winner.draw { color: #aaa; text-shadow: 0 0 20px #aaa; }
+
+  #overlay .sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    color: #88ccdd;
+    letter-spacing: 3px;
+    opacity: 0.8;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
+  #disconnected {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ff2200;
+    color: #fff;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 2px;
+    padding: 10px 24px;
+    border-radius: 4px;
+    z-index: 100;
+    box-shadow: 0 0 20px #ff220066;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════ LOBBY ═══════ -->
+<div id="lobby">
+  <h1>TRON</h1>
+  <div class="tagline">ONLINE MULTIPLAYER</div>
+
+  <div class="lobby-box">
+    <h2>CREATE A GAME</h2>
+    <p>Start a room and share the code with your friend</p>
+    <button class="btn btn-cyan" id="btnCreate">CREATE ROOM</button>
+    <div class="room-code-display hidden" id="roomCodeDisplay" title="Click to copy"></div>
+  </div>
+
+  <div class="divider">OR</div>
+
+  <div class="lobby-box">
+    <h2>JOIN A GAME</h2>
+    <p>Enter the room code from your friend</p>
+    <input type="text" id="joinInput" placeholder="CODE" maxlength="6" autocomplete="off" spellcheck="false">
+    <button class="btn btn-orange" id="btnJoin">JOIN ROOM</button>
+  </div>
+
+  <div id="status"></div>
+</div>
+
+<!-- ═══════ GAME ═══════ -->
+<div id="gameScreen">
+  <div id="hud">
+    <div class="player-hud p1-hud">
+      <span>CYAN</span>
+      <span class="score-val" id="score1">0</span>
+      <span class="you-tag hidden" id="youTag1">YOU</span>
+    </div>
+    <div class="player-hud p2-hud">
+      <span class="you-tag hidden" id="youTag2">YOU</span>
+      <span class="score-val" id="score2">0</span>
+      <span>ORANGE</span>
+    </div>
+  </div>
+
+  <div style="position:relative;">
+    <canvas id="gameCanvas" width="802" height="502"></canvas>
+    <div id="overlay" class="hidden"></div>
+  </div>
+</div>
+
+<div id="disconnected" class="hidden">OPPONENT DISCONNECTED — REFRESH TO PLAY AGAIN</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  NETWORKING (PeerJS)
+// ═══════════════════════════════════════════
+let peer, conn;
+let isHost = false;
+let myPlayer = 0; // 0 = P1 (cyan/host), 1 = P2 (orange/joiner)
+
+const statusEl = document.getElementById('status');
+const lobbyEl = document.getElementById('lobby');
+const gameScreenEl = document.getElementById('gameScreen');
+
+function generateCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
+
+function setStatus(msg) { statusEl.textContent = msg; }
+
+// ── CREATE ROOM ──
+document.getElementById('btnCreate').addEventListener('click', () => {
+  const code = generateCode();
+  const peerId = 'tron-' + code.toLowerCase();
+
+  document.getElementById('btnCreate').disabled = true;
+  document.getElementById('btnJoin').disabled = true;
+  setStatus('CREATING ROOM...');
+
+  peer = new Peer(peerId);
+
+  peer.on('open', () => {
+    isHost = true;
+    myPlayer = 0;
+    const display = document.getElementById('roomCodeDisplay');
+    display.textContent = code;
+    display.classList.remove('hidden');
+    display.addEventListener('click', () => {
+      navigator.clipboard.writeText(code);
+      display.style.color = '#33ffaa';
+      setTimeout(() => display.style.color = '', 600);
+    });
+    setStatus('WAITING FOR OPPONENT TO JOIN...');
+  });
+
+  peer.on('connection', (c) => {
+    conn = c;
+    setupConnection();
+  });
+
+  peer.on('error', (err) => {
+    setStatus('ERROR: ' + err.type);
+    document.getElementById('btnCreate').disabled = false;
+    document.getElementById('btnJoin').disabled = false;
+  });
+});
+
+// ── JOIN ROOM ──
+document.getElementById('btnJoin').addEventListener('click', () => {
+  const code = document.getElementById('joinInput').value.trim().toUpperCase();
+  if (code.length < 3) { setStatus('ENTER A VALID CODE'); return; }
+
+  const peerId = 'tron-' + code.toLowerCase();
+  document.getElementById('btnCreate').disabled = true;
+  document.getElementById('btnJoin').disabled = true;
+  setStatus('CONNECTING...');
+
+  peer = new Peer();
+
+  peer.on('open', () => {
+    myPlayer = 1;
+    conn = peer.connect(peerId, { reliable: true });
+    setupConnection();
+  });
+
+  peer.on('error', (err) => {
+    if (err.type === 'peer-unavailable') {
+      setStatus('ROOM NOT FOUND — CHECK THE CODE');
+    } else {
+      setStatus('ERROR: ' + err.type);
+    }
+    document.getElementById('btnCreate').disabled = false;
+    document.getElementById('btnJoin').disabled = false;
+  });
+});
+
+function setupConnection() {
+  conn.on('open', () => {
+    setStatus('CONNECTED!');
+    setTimeout(startGame, 500);
+  });
+
+  conn.on('data', (data) => {
+    handleNetworkMessage(data);
+  });
+
+  conn.on('close', () => {
+    document.getElementById('disconnected').classList.remove('hidden');
+    gameRunning = false;
+    clearInterval(gameLoop);
+  });
+}
+
+function send(msg) {
+  if (conn && conn.open) conn.send(msg);
+}
+
+// ═══════════════════════════════════════════
+//  GAME ENGINE
+// ═══════════════════════════════════════════
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+
+const CELL = 4;
+const COLS = Math.floor(canvas.width / CELL);
+const ROWS = Math.floor(canvas.height / CELL);
+const TICK = 35;
+
+const P1_COLOR = '#00e5ff';
+const P1_GLOW = '#00e5ff';
+const P2_COLOR = '#ff6600';
+const P2_GLOW = '#ff6600';
+
+const DIR = {
+  UP: { x: 0, y: -1 },
+  DOWN: { x: 0, y: 1 },
+  LEFT: { x: -1, y: 0 },
+  RIGHT: { x: 1, y: 0 }
+};
+const DIR_NAMES = { '0,-1': 'UP', '0,1': 'DOWN', '-1,0': 'LEFT', '1,0': 'RIGHT' };
+
+let grid, players, gameRunning = false, gameLoop, scores = [0, 0];
+let roundCountdown = 0;
+
+function dirKey(d) { return d.x + ',' + d.y; }
+
+function startGame() {
+  lobbyEl.style.display = 'none';
+  gameScreenEl.style.display = 'flex';
+
+  if (myPlayer === 0) {
+    document.getElementById('youTag1').classList.remove('hidden');
+  } else {
+    document.getElementById('youTag2').classList.remove('hidden');
+  }
+
+  scores = [0, 0];
+  newRound();
+}
+
+function newRound() {
+  grid = new Uint8Array(COLS * ROWS);
+  players = [
+    {
+      x: Math.floor(COLS * 0.25), y: Math.floor(ROWS / 2),
+      dir: DIR.RIGHT, nextDir: DIR.RIGHT,
+      color: P1_COLOR, glow: P1_GLOW, head: '#ffffff',
+      id: 1, alive: true, trail: []
+    },
+    {
+      x: Math.floor(COLS * 0.75), y: Math.floor(ROWS / 2),
+      dir: DIR.LEFT, nextDir: DIR.LEFT,
+      color: P2_COLOR, glow: P2_GLOW, head: '#ffffff',
+      id: 2, alive: true, trail: []
+    }
+  ];
+
+  for (const p of players) {
+    grid[p.y * COLS + p.x] = p.id;
+    p.trail.push({ x: p.x, y: p.y });
+  }
+
+  drawGrid();
+  drawPlayers();
+
+  // Show countdown
+  overlay.classList.remove('hidden');
+  roundCountdown = 3;
+  overlay.innerHTML = `<div class="winner draw" style="font-size:48px;">${roundCountdown}</div>`;
+
+  const countInterval = setInterval(() => {
+    roundCountdown--;
+    if (roundCountdown > 0) {
+      overlay.innerHTML = `<div class="winner draw" style="font-size:48px;">${roundCountdown}</div>`;
+    } else {
+      clearInterval(countInterval);
+      overlay.classList.add('hidden');
+      gameRunning = true;
+      // Host drives the game loop
+      if (isHost) {
+        gameLoop = setInterval(hostTick, TICK);
+      }
+    }
+  }, 700);
+}
+
+// ── HOST GAME LOOP ──
+function hostTick() {
+  // Apply directions
+  for (const p of players) {
+    if (p.alive) p.dir = p.nextDir;
+  }
+
+  // Move
+  for (const p of players) {
+    if (!p.alive) continue;
+    p.x += p.dir.x;
+    p.y += p.dir.y;
+
+    if (p.x < 0 || p.x >= COLS || p.y < 0 || p.y >= ROWS) {
+      p.alive = false;
+      continue;
+    }
+
+    const idx = p.y * COLS + p.x;
+    if (grid[idx] !== 0) {
+      p.alive = false;
+      continue;
+    }
+  }
+
+  // Head-on
+  if (players[0].alive && players[1].alive &&
+      players[0].x === players[1].x && players[0].y === players[1].y) {
+    players[0].alive = false;
+    players[1].alive = false;
+  }
+
+  // Place trails
+  for (const p of players) {
+    if (!p.alive) continue;
+    grid[p.y * COLS + p.x] = p.id;
+    p.trail.push({ x: p.x, y: p.y });
+  }
+
+  // Send state to peer
+  send({
+    type: 'state',
+    p: players.map(p => ({
+      x: p.x, y: p.y,
+      dir: dirKey(p.dir),
+      alive: p.alive,
+      trail: p.trail
+    }))
+  });
+
+  render();
+  checkEnd();
+}
+
+function render() {
+  drawGrid();
+
+  for (const p of players) {
+    ctx.shadowColor = p.glow;
+    ctx.shadowBlur = p.alive ? 6 : 0;
+    ctx.fillStyle = p.alive ? p.color : (p.color + '44');
+    for (const t of p.trail) {
+      ctx.fillRect(t.x * CELL, t.y * CELL, CELL, CELL);
+    }
+    if (p.alive) {
+      ctx.shadowBlur = 14;
+      ctx.shadowColor = '#fff';
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(p.x * CELL, p.y * CELL, CELL, CELL);
+    }
+    ctx.shadowBlur = 0;
+  }
+}
+
+function checkEnd() {
+  const alive = players.filter(p => p.alive);
+  if (alive.length <= 1) {
+    gameRunning = false;
+    clearInterval(gameLoop);
+
+    for (const p of players) {
+      if (!p.alive) drawExplosion(p);
+    }
+
+    const winner = alive[0] || null;
+    let winnerInfo;
+
+    if (winner) {
+      scores[winner.id - 1]++;
+      const cls = winner.id === 1 ? 'p1' : 'p2';
+      const name = winner.id === 1 ? 'CYAN' : 'ORANGE';
+      const isYou = (winner.id - 1) === myPlayer;
+      winnerInfo = { cls, name, isYou, draw: false };
+    } else {
+      winnerInfo = { cls: 'draw', name: 'DRAW', isYou: false, draw: true };
+    }
+
+    document.getElementById('score1').textContent = scores[0];
+    document.getElementById('score2').textContent = scores[1];
+
+    send({ type: 'roundEnd', scores, winnerInfo });
+    showRoundEnd(winnerInfo);
+  }
+}
+
+function showRoundEnd(info) {
+  let label;
+  if (info.draw) {
+    label = 'DRAW';
+  } else if (info.isYou || (myPlayer === 0 && info.cls === 'p1') || (myPlayer === 1 && info.cls === 'p2')) {
+    label = 'YOU WIN!';
+  } else {
+    label = 'YOU LOSE';
+  }
+
+  overlay.innerHTML = `
+    <div class="winner ${info.cls}">${label}</div>
+    <div class="sub">NEXT ROUND IN 3...</div>
+  `;
+  overlay.classList.remove('hidden');
+
+  // Auto-start next round
+  if (isHost) {
+    setTimeout(() => {
+      send({ type: 'newRound' });
+      newRound();
+    }, 2500);
+  }
+}
+
+function drawGrid() {
+  ctx.fillStyle = '#050a0f';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#0a1520';
+  ctx.lineWidth = 0.5;
+  for (let x = 0; x < canvas.width; x += CELL * 10) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+  }
+  for (let y = 0; y < canvas.height; y += CELL * 10) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  }
+}
+
+function drawPlayers() {
+  for (const p of players) {
+    if (!p.alive) continue;
+    ctx.shadowColor = p.glow;
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = p.color;
+    for (const t of p.trail) ctx.fillRect(t.x * CELL, t.y * CELL, CELL, CELL);
+    ctx.shadowBlur = 14;
+    ctx.shadowColor = '#fff';
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(p.x * CELL, p.y * CELL, CELL, CELL);
+    ctx.shadowBlur = 0;
+  }
+}
+
+function drawExplosion(p) {
+  const cx = p.x * CELL + CELL / 2;
+  const cy = p.y * CELL + CELL / 2;
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, 30);
+  grad.addColorStop(0, '#ffffff');
+  grad.addColorStop(0.2, p.color);
+  grad.addColorStop(1, 'transparent');
+  ctx.fillStyle = grad;
+  ctx.fillRect(cx - 30, cy - 30, 60, 60);
+}
+
+function opposite(d1, d2) {
+  return d1.x + d2.x === 0 && d1.y + d2.y === 0;
+}
+
+// ═══════════════════════════════════════════
+//  NETWORK MESSAGE HANDLER
+// ═══════════════════════════════════════════
+function handleNetworkMessage(data) {
+  if (data.type === 'dir') {
+    // Host receives direction from guest
+    if (isHost && players[1]) {
+      const d = DIR[data.dir];
+      if (d && !opposite(players[1].dir, d)) {
+        players[1].nextDir = d;
+      }
+    }
+  }
+
+  if (data.type === 'state' && !isHost) {
+    // Guest receives authoritative state from host
+    for (let i = 0; i < 2; i++) {
+      const s = data.p[i];
+      players[i].x = s.x;
+      players[i].y = s.y;
+      players[i].alive = s.alive;
+      players[i].trail = s.trail;
+      const [dx, dy] = s.dir.split(',').map(Number);
+      players[i].dir = { x: dx, y: dy };
+    }
+
+    // Rebuild grid
+    grid = new Uint8Array(COLS * ROWS);
+    for (const p of players) {
+      for (const t of p.trail) {
+        grid[t.y * COLS + t.x] = p.id;
+      }
+    }
+
+    render();
+  }
+
+  if (data.type === 'roundEnd' && !isHost) {
+    scores = data.scores;
+    document.getElementById('score1').textContent = scores[0];
+    document.getElementById('score2').textContent = scores[1];
+
+    // Adjust isYou for our perspective
+    const info = data.winnerInfo;
+    if (!info.draw) {
+      info.isYou = (myPlayer === 0 && info.cls === 'p1') || (myPlayer === 1 && info.cls === 'p2');
+    }
+    gameRunning = false;
+    showRoundEnd(info);
+  }
+
+  if (data.type === 'newRound' && !isHost) {
+    newRound();
+  }
+}
+
+// ═══════════════════════════════════════════
+//  INPUT
+// ═══════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (!gameRunning) return;
+
+  const key = e.key.toLowerCase();
+  let dirName = null;
+
+  // Both WASD and Arrows work — you control your own player
+  switch (key) {
+    case 'w': case 'arrowup':    dirName = 'UP'; e.preventDefault(); break;
+    case 's': case 'arrowdown':  dirName = 'DOWN'; e.preventDefault(); break;
+    case 'a': case 'arrowleft':  dirName = 'LEFT'; e.preventDefault(); break;
+    case 'd': case 'arrowright': dirName = 'RIGHT'; e.preventDefault(); break;
+  }
+
+  if (!dirName) return;
+
+  const me = players[myPlayer];
+  const d = DIR[dirName];
+  if (!d || opposite(me.dir, d)) return;
+
+  if (isHost) {
+    // Host directly sets their direction
+    me.nextDir = d;
+  } else {
+    // Guest sends direction to host
+    me.nextDir = d; // Optimistic local
+    send({ type: 'dir', dir: dirName });
+  }
+});
+
+// Also handle touch for mobile
+let touchStartX = 0, touchStartY = 0;
+document.addEventListener('touchstart', e => {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+});
+document.addEventListener('touchend', e => {
+  if (!gameRunning) return;
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  const dy = e.changedTouches[0].clientY - touchStartY;
+  let dirName;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    dirName = dx > 0 ? 'RIGHT' : 'LEFT';
+  } else {
+    dirName = dy > 0 ? 'DOWN' : 'UP';
+  }
+  const me = players[myPlayer];
+  const d = DIR[dirName];
+  if (!d || opposite(me.dir, d)) return;
+  if (isHost) { me.nextDir = d; }
+  else { me.nextDir = d; send({ type: 'dir', dir: dirName }); }
+});
+</script>
+</body>
+</html>
