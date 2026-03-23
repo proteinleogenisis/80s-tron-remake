@@ -170,6 +170,113 @@
 
   .hidden { display: none !important; }
 
+  /* ───── VOTE SCREEN ───── */
+  #voteScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    animation: fadeIn 0.6s ease;
+  }
+
+  #voteRoomCode {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: #5599aa;
+    letter-spacing: 3px;
+  }
+  #voteCodeDisplay {
+    color: #00e5ff;
+    cursor: pointer;
+    letter-spacing: 6px;
+    font-size: 14px;
+  }
+
+  #voteTitle {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 10px;
+    color: #00e5ff;
+    text-shadow: 0 0 20px #00e5ff88;
+  }
+
+  #voteTagline {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: #5599aa;
+    letter-spacing: 3px;
+    margin-top: -12px;
+  }
+
+  #mapCards {
+    display: flex;
+    gap: 20px;
+  }
+
+  .map-card {
+    background: #0a1520;
+    border: 2px solid #1a3a4a;
+    border-radius: 8px;
+    padding: 16px;
+    width: 160px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .map-card:hover {
+    border-color: #00e5ff55;
+    box-shadow: 0 0 16px #00e5ff22;
+  }
+
+  .map-card.selected {
+    border-color: #00e5ff;
+    box-shadow: 0 0 24px #00e5ff55;
+    background: #0a2030;
+  }
+
+  .map-card.voted-opponent {
+    border-color: #ff660066;
+  }
+
+  .map-card.selected.voted-opponent {
+    border-color: #00e5ff;
+    box-shadow: 0 0 24px #00e5ff88, 0 0 12px #ff660044;
+  }
+
+  .map-preview {
+    border: 1px solid #1a3a4a;
+    border-radius: 2px;
+    display: block;
+  }
+
+  .map-card-name {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: #88ccdd;
+  }
+
+  .map-card-desc {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: #5599aa;
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  #voteStatus {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+    color: #88ccdd;
+    letter-spacing: 2px;
+    min-height: 20px;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+
   /* ───── GAME SCREEN ───── */
   #gameScreen { display: none; flex-direction: column; align-items: center; gap: 12px; }
 
@@ -285,6 +392,31 @@
   <div id="status"></div>
 </div>
 
+<!-- ═══════ MAP VOTE SCREEN ═══════ -->
+<div id="voteScreen" class="hidden">
+  <div id="voteRoomCode" class="hidden">ROOM CODE: <span id="voteCodeDisplay"></span></div>
+  <div id="voteTitle">SELECT YOUR MAP</div>
+  <div id="voteTagline">VOTE — MAJORITY RULES — TIES BROKEN BY COIN FLIP</div>
+  <div id="mapCards">
+    <div class="map-card" id="mapCard-open" data-mapid="open">
+      <canvas class="map-preview" id="mapPreview-open" width="120" height="75"></canvas>
+      <div class="map-card-name">OPEN GRID</div>
+      <div class="map-card-desc">Classic arena.<br>No obstacles.</div>
+    </div>
+    <div class="map-card" id="mapCard-divided" data-mapid="divided">
+      <canvas class="map-preview" id="mapPreview-divided" width="120" height="75"></canvas>
+      <div class="map-card-name">DIVIDED</div>
+      <div class="map-card-desc">Center wall with<br>top &amp; bottom gaps.</div>
+    </div>
+    <div class="map-card" id="mapCard-gauntlet" data-mapid="gauntlet">
+      <canvas class="map-preview" id="mapPreview-gauntlet" width="120" height="75"></canvas>
+      <div class="map-card-name">GAUNTLET</div>
+      <div class="map-card-desc">Two walls force<br>a narrow center lane.</div>
+    </div>
+  </div>
+  <div id="voteStatus"></div>
+</div>
+
 <!-- ═══════ GAME ═══════ -->
 <div id="gameScreen">
   <div id="hud">
@@ -319,6 +451,7 @@ let myPlayer = 0; // 0 = P1 (cyan/host), 1 = P2 (orange/joiner)
 const statusEl = document.getElementById('status');
 const lobbyEl = document.getElementById('lobby');
 const gameScreenEl = document.getElementById('gameScreen');
+const voteScreenEl = document.getElementById('voteScreen');
 
 function generateCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -343,6 +476,8 @@ document.getElementById('btnCreate').addEventListener('click', () => {
   peer.on('open', () => {
     isHost = true;
     myPlayer = 0;
+
+    // Show room code in lobby briefly, then move to vote screen
     const display = document.getElementById('roomCodeDisplay');
     display.textContent = code;
     display.classList.remove('hidden');
@@ -351,7 +486,19 @@ document.getElementById('btnCreate').addEventListener('click', () => {
       display.style.color = '#33ffaa';
       setTimeout(() => display.style.color = '', 600);
     });
-    setStatus('WAITING FOR OPPONENT TO JOIN...');
+
+    // Switch to vote screen and show room code there too
+    lobbyEl.classList.add('hidden');
+    const voteCodeEl = document.getElementById('voteCodeDisplay');
+    voteCodeEl.textContent = code;
+    voteCodeEl.addEventListener('click', () => {
+      navigator.clipboard.writeText(code);
+      voteCodeEl.style.color = '#33ffaa';
+      setTimeout(() => voteCodeEl.style.color = '', 600);
+    });
+    document.getElementById('voteRoomCode').classList.remove('hidden');
+    showVoteScreen();
+    setVoteStatus('VOTE FOR A MAP — WAITING FOR OPPONENT TO JOIN...');
   });
 
   peer.on('connection', (c) => {
@@ -397,8 +544,19 @@ document.getElementById('btnJoin').addEventListener('click', () => {
 
 function setupConnection() {
   conn.on('open', () => {
-    setStatus('CONNECTED!');
-    setTimeout(startGame, 500);
+    if (isHost) {
+      setVoteStatus('OPPONENT JOINED — WAITING FOR THEIR VOTE...');
+      send({ type: 'mapVoteInfo', hostVote: hostVote });
+      // If guest's vote already arrived (race), resolve now
+      if (pendingGuestVote) {
+        guestVote = pendingGuestVote;
+        pendingGuestVote = null;
+        updateOpponentVoteIndicator(guestVote);
+        if (hostVote) resolveVote();
+      }
+    } else {
+      setStatus('CONNECTED — WAITING FOR MAP INFO...');
+    }
   });
 
   conn.on('data', (data) => {
@@ -441,8 +599,171 @@ const DIR = {
 };
 const DIR_NAMES = { '0,-1': 'UP', '0,1': 'DOWN', '-1,0': 'LEFT', '1,0': 'RIGHT' };
 
+const MAPS = [
+  {
+    id: 'open', name: 'OPEN GRID', desc: 'Classic arena. No obstacles.',
+    spawns: [
+      { x: Math.floor(COLS * 0.25), y: Math.floor(ROWS / 2), dir: DIR.RIGHT },
+      { x: Math.floor(COLS * 0.75), y: Math.floor(ROWS / 2), dir: DIR.LEFT }
+    ],
+    obstacles: []
+  },
+  {
+    id: 'divided', name: 'DIVIDED', desc: 'Center wall with top and bottom gaps.',
+    spawns: [
+      { x: Math.floor(COLS * 0.25), y: Math.floor(ROWS / 2), dir: DIR.RIGHT },
+      { x: Math.floor(COLS * 0.75), y: Math.floor(ROWS / 2), dir: DIR.LEFT }
+    ],
+    obstacles: [
+      { x: Math.floor(COLS / 2) - 1, y: Math.floor(ROWS * 0.3), w: 2, h: Math.floor(ROWS * 0.4) }
+    ]
+  },
+  {
+    id: 'gauntlet', name: 'GAUNTLET', desc: 'Two walls force a narrow center lane.',
+    spawns: [
+      { x: Math.floor(COLS * 0.15), y: Math.floor(ROWS / 2), dir: DIR.RIGHT },
+      { x: Math.floor(COLS * 0.85), y: Math.floor(ROWS / 2), dir: DIR.LEFT }
+    ],
+    obstacles: [
+      { x: Math.floor(COLS * 0.2), y: Math.floor(ROWS * 0.35) - 1, w: Math.floor(COLS * 0.6), h: 2 },
+      { x: Math.floor(COLS * 0.2), y: Math.floor(ROWS * 0.65),     w: Math.floor(COLS * 0.6), h: 2 }
+    ]
+  }
+];
+
 let grid, players, gameRunning = false, gameLoop, scores = [0, 0];
 let roundCountdown = 0;
+
+// ── MAP VOTING STATE ──
+let activeMap = MAPS[0];
+let hostVote = null;
+let guestVote = null;
+let mapObstacles = [];
+let hasVoted = false;
+let voteResolved = false;
+let pendingGuestVote = null;
+
+// ── VOTE SCREEN FUNCTIONS ──
+function showVoteScreen() {
+  voteScreenEl.classList.remove('hidden');
+  drawAllMapPreviews();
+  for (const m of MAPS) {
+    document.getElementById('mapCard-' + m.id)
+      .addEventListener('click', () => castVote(m.id));
+  }
+}
+
+function hideVoteScreen() {
+  voteScreenEl.classList.add('hidden');
+}
+
+function setVoteStatus(msg) {
+  document.getElementById('voteStatus').textContent = msg;
+}
+
+function updateOpponentVoteIndicator(mapId) {
+  document.querySelectorAll('.map-card').forEach(c => c.classList.remove('voted-opponent'));
+  if (mapId) {
+    const card = document.getElementById('mapCard-' + mapId);
+    if (card) card.classList.add('voted-opponent');
+  }
+}
+
+function castVote(mapId) {
+  if (hasVoted) return;
+  hasVoted = true;
+  document.querySelectorAll('.map-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('mapCard-' + mapId).classList.add('selected');
+
+  if (isHost) {
+    hostVote = mapId;
+    if (guestVote) {
+      resolveVote();
+    } else {
+      setVoteStatus('VOTED! WAITING FOR OPPONENT...');
+    }
+  } else {
+    guestVote = mapId;
+    send({ type: 'guestVote', vote: mapId });
+    setVoteStatus('VOTED! WAITING FOR OPPONENT...');
+  }
+}
+
+function resolveVote() {
+  if (voteResolved) return;
+  voteResolved = true;
+  const winner = (hostVote === guestVote)
+    ? hostVote
+    : (Math.random() < 0.5 ? hostVote : guestVote);
+  activeMap = MAPS.find(m => m.id === winner);
+  send({ type: 'mapSelected', mapId: winner });
+  applyMapAndStart();
+}
+
+function applyMapAndStart() {
+  mapObstacles = activeMap.obstacles;
+  hideVoteScreen();
+  startGame();
+}
+
+// ── MAP PREVIEW DRAWING ──
+function drawMapPreview(map) {
+  const c = document.getElementById('mapPreview-' + map.id);
+  if (!c) return;
+  const cx = c.getContext('2d');
+  const pw = c.width, ph = c.height;
+  const sx = pw / (COLS * CELL), sy = ph / (ROWS * CELL);
+
+  cx.fillStyle = '#050a0f';
+  cx.fillRect(0, 0, pw, ph);
+
+  // Grid lines
+  cx.strokeStyle = '#0a1520';
+  cx.lineWidth = 0.5;
+  for (let x = 0; x < pw; x += CELL * 10 * sx) {
+    cx.beginPath(); cx.moveTo(x, 0); cx.lineTo(x, ph); cx.stroke();
+  }
+  for (let y = 0; y < ph; y += CELL * 10 * sy) {
+    cx.beginPath(); cx.moveTo(0, y); cx.lineTo(pw, y); cx.stroke();
+  }
+
+  // Obstacles
+  cx.fillStyle = '#00e5ff';
+  cx.shadowColor = '#00e5ff';
+  cx.shadowBlur = 4;
+  for (const o of map.obstacles) {
+    cx.fillRect(o.x * CELL * sx, o.y * CELL * sy, o.w * CELL * sx, o.h * CELL * sy);
+  }
+  cx.shadowBlur = 0;
+
+  // Spawn dots
+  [P1_COLOR, P2_COLOR].forEach((col, i) => {
+    const sp = map.spawns[i];
+    cx.fillStyle = col;
+    cx.shadowColor = col;
+    cx.shadowBlur = 6;
+    cx.fillRect(sp.x * CELL * sx - 2, sp.y * CELL * sy - 2, 5, 5);
+  });
+  cx.shadowBlur = 0;
+}
+
+function drawAllMapPreviews() {
+  for (const m of MAPS) drawMapPreview(m);
+}
+
+// ── OBSTACLE GRID HELPER ──
+function placeObstacles(obstacles) {
+  for (const o of obstacles) {
+    for (let dy = 0; dy < o.h; dy++) {
+      for (let dx = 0; dx < o.w; dx++) {
+        const gx = o.x + dx, gy = o.y + dy;
+        if (gx >= 0 && gx < COLS && gy >= 0 && gy < ROWS) {
+          grid[gy * COLS + gx] = 3;
+        }
+      }
+    }
+  }
+}
 
 function dirKey(d) { return d.x + ',' + d.y; }
 
@@ -462,16 +783,18 @@ function startGame() {
 
 function newRound() {
   grid = new Uint8Array(COLS * ROWS);
+
+  const sp = activeMap.spawns;
   players = [
     {
-      x: Math.floor(COLS * 0.25), y: Math.floor(ROWS / 2),
-      dir: DIR.RIGHT, nextDir: DIR.RIGHT,
+      x: sp[0].x, y: sp[0].y,
+      dir: sp[0].dir, nextDir: sp[0].dir,
       color: P1_COLOR, glow: P1_GLOW, head: '#ffffff',
       id: 1, alive: true, trail: []
     },
     {
-      x: Math.floor(COLS * 0.75), y: Math.floor(ROWS / 2),
-      dir: DIR.LEFT, nextDir: DIR.LEFT,
+      x: sp[1].x, y: sp[1].y,
+      dir: sp[1].dir, nextDir: sp[1].dir,
       color: P2_COLOR, glow: P2_GLOW, head: '#ffffff',
       id: 2, alive: true, trail: []
     }
@@ -482,7 +805,10 @@ function newRound() {
     p.trail.push({ x: p.x, y: p.y });
   }
 
+  placeObstacles(activeMap.obstacles);
+
   drawGrid();
+  drawWalls(mapObstacles);
   drawPlayers();
 
   // Show countdown
@@ -498,7 +824,6 @@ function newRound() {
       clearInterval(countInterval);
       overlay.classList.add('hidden');
       gameRunning = true;
-      // Host drives the game loop
       if (isHost) {
         gameLoop = setInterval(hostTick, TICK);
       }
@@ -562,6 +887,7 @@ function hostTick() {
 
 function render() {
   drawGrid();
+  drawWalls(mapObstacles);
 
   for (const p of players) {
     ctx.shadowColor = p.glow;
@@ -578,6 +904,17 @@ function render() {
     }
     ctx.shadowBlur = 0;
   }
+}
+
+function drawWalls(obstacles) {
+  if (!obstacles || obstacles.length === 0) return;
+  ctx.fillStyle = '#00e5ff';
+  ctx.shadowColor = '#00e5ff';
+  ctx.shadowBlur = 8;
+  for (const o of obstacles) {
+    ctx.fillRect(o.x * CELL, o.y * CELL, o.w * CELL, o.h * CELL);
+  }
+  ctx.shadowBlur = 0;
 }
 
 function checkEnd() {
@@ -627,7 +964,6 @@ function showRoundEnd(info) {
   `;
   overlay.classList.remove('hidden');
 
-  // Auto-start next round
   if (isHost) {
     setTimeout(() => {
       send({ type: 'newRound' });
@@ -684,8 +1020,7 @@ function opposite(d1, d2) {
 // ═══════════════════════════════════════════
 function handleNetworkMessage(data) {
   if (data.type === 'dir') {
-    // Host receives direction from guest
-    if (isHost && players[1]) {
+    if (isHost && players && players[1]) {
       const d = DIR[data.dir];
       if (d && !opposite(players[1].dir, d)) {
         players[1].nextDir = d;
@@ -694,7 +1029,6 @@ function handleNetworkMessage(data) {
   }
 
   if (data.type === 'state' && !isHost) {
-    // Guest receives authoritative state from host
     for (let i = 0; i < 2; i++) {
       const s = data.p[i];
       players[i].x = s.x;
@@ -705,8 +1039,9 @@ function handleNetworkMessage(data) {
       players[i].dir = { x: dx, y: dy };
     }
 
-    // Rebuild grid
+    // Rebuild grid: obstacles first, then trails
     grid = new Uint8Array(COLS * ROWS);
+    placeObstacles(mapObstacles);
     for (const p of players) {
       for (const t of p.trail) {
         grid[t.y * COLS + t.x] = p.id;
@@ -721,7 +1056,6 @@ function handleNetworkMessage(data) {
     document.getElementById('score1').textContent = scores[0];
     document.getElementById('score2').textContent = scores[1];
 
-    // Adjust isYou for our perspective
     const info = data.winnerInfo;
     if (!info.draw) {
       info.isYou = (myPlayer === 0 && info.cls === 'p1') || (myPlayer === 1 && info.cls === 'p2');
@@ -732,6 +1066,37 @@ function handleNetworkMessage(data) {
 
   if (data.type === 'newRound' && !isHost) {
     newRound();
+  }
+
+  // ── MAP VOTING MESSAGES ──
+  if (data.type === 'mapVoteInfo' && !isHost) {
+    lobbyEl.classList.add('hidden');
+    showVoteScreen();
+    if (data.hostVote) {
+      updateOpponentVoteIndicator(data.hostVote);
+      setVoteStatus('OPPONENT ALREADY VOTED — MAKE YOUR PICK...');
+    } else {
+      setVoteStatus('VOTE FOR A MAP...');
+    }
+  }
+
+  if (data.type === 'guestVote' && isHost) {
+    if (!conn.open) {
+      pendingGuestVote = data.vote;
+    } else {
+      guestVote = data.vote;
+      updateOpponentVoteIndicator(guestVote);
+      if (hostVote) {
+        resolveVote();
+      } else {
+        setVoteStatus('OPPONENT VOTED — MAKE YOUR PICK...');
+      }
+    }
+  }
+
+  if (data.type === 'mapSelected' && !isHost) {
+    activeMap = MAPS.find(m => m.id === data.mapId);
+    applyMapAndStart();
   }
 }
 
@@ -744,7 +1109,6 @@ document.addEventListener('keydown', e => {
   const key = e.key.toLowerCase();
   let dirName = null;
 
-  // Both WASD and Arrows work — you control your own player
   switch (key) {
     case 'w': case 'arrowup':    dirName = 'UP'; e.preventDefault(); break;
     case 's': case 'arrowdown':  dirName = 'DOWN'; e.preventDefault(); break;
@@ -759,16 +1123,13 @@ document.addEventListener('keydown', e => {
   if (!d || opposite(me.dir, d)) return;
 
   if (isHost) {
-    // Host directly sets their direction
     me.nextDir = d;
   } else {
-    // Guest sends direction to host
-    me.nextDir = d; // Optimistic local
+    me.nextDir = d;
     send({ type: 'dir', dir: dirName });
   }
 });
 
-// Also handle touch for mobile
 let touchStartX = 0, touchStartY = 0;
 document.addEventListener('touchstart', e => {
   touchStartX = e.touches[0].clientX;
